@@ -1,22 +1,17 @@
 using Cysharp.Threading.Tasks;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 
 public class CountdownManager : MonoBehaviour
-
 {
-    [SerializeField] private TextMeshProUGUI _countdowntext;
     public UnityEvent onCountDownEnd;
-    public TextMeshProUGUI _winnertext;
     public RacersMovement[] _racers;
+    [SerializeField] private TextMeshProUGUI _countdownText;
+    public TextMeshProUGUI _winnerText;
 
-    private CancellationTokenSource _cancellationToken;
+    private CancellationTokenSource _cancellationToken = new CancellationTokenSource();
 
     private void OnEnable()
     {
@@ -28,35 +23,44 @@ public class CountdownManager : MonoBehaviour
         RacersMovement.onRaceFinish.RemoveListener(HandleRaceFinish);
     }
 
-    public async void StartCountdown()
+    public void StartCountdown()
     {
-      if (_cancellationToken!= null)
-      {
-        _cancellationToken.Cancel();
-      }
+        if (_cancellationToken != null)
+        {
+            _cancellationToken.Cancel();
+            _cancellationToken.Dispose();
+        }
+
         _cancellationToken = new CancellationTokenSource();
-        await Runcountdown(10, _cancellationToken.Token);
+
+        RunCountdown(10, _cancellationToken.Token).Forget();
     }
 
-    private async UniTask Runcountdown(int duration, CancellationToken token)
+    private async UniTask RunCountdown(int duration, CancellationToken token)
     {
-        for (int i = duration;i>=0; i--)
+        for (int i = duration; i >= 0; i--)
         {
-            _countdowntext.text = i.ToString();
-            await UniTask.Delay(1000, cancellationToken: token);
+            _countdownText.text = i.ToString();
+
+            if (token.IsCancellationRequested)
+            {
+                // return;
+                //potrebbe essere meglio utilizzare questa chiamata
+                //il return non è una cosa così utile in questo caso e in più non è buona pratica usare return
+                //in una funzione asincrona. potrebbe causare problemi di sincronizzazione
+                await UniTask.CompletedTask;
+            }
             
+            await UniTask.Delay(1000, cancellationToken: token);
         }
-        if (token.IsCancellationRequested)
-        {
-            return;
-        }
-        _countdowntext.text = "GO";
+
+        _countdownText.text = "GO";
         onCountDownEnd?.Invoke();
     }
 
     private void HandleRaceFinish(string winner)
     {
-        _winnertext.text = $"{winner} wins!";
+        _winnerText.text = $"{winner} wins!";
         
         foreach (RacersMovement racer in _racers)
         {
